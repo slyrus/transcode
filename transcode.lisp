@@ -5,7 +5,13 @@
 
 (cl:defpackage #:transcode
   (:use #:cl)
-  (:export #:recursively-list-files
+  (:export #:iso-media-box
+           #:iso-media-box-type
+           #:iso-media-box-size
+           #:iso-media-box-data
+           #:make-iso-media-box
+           
+           #:recursively-list-files
            #:read-n-bytes
            #:read-32-bit-int
            #:media-type-string
@@ -40,6 +46,13 @@
                  :iso-media-box-size size
                  :iso-media-box-type type
                  :iso-media-box-data data))
+
+(defmethod print-object ((object iso-media-box) stream)
+  (print-unreadable-object (object stream :type t)
+    (with-slots ((size iso-media-box-size)
+                 (type iso-media-box-type)) object
+      (format stream "~s :size ~d" (media-type-string type) size))))
+
 ;;; filesystem utilities
 
 (defun recursively-list-files (dir &key test)
