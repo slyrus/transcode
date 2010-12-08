@@ -87,6 +87,14 @@
   (with-open-file (stream file :element-type '(unsigned-byte 8))
     (do-iso-media-stream stream fn)))
 
+(defun read-iso-media-stream-boxes (stream limit &optional acc)
+  (if (plusp limit)
+      (let ((box (read-iso-media-box stream)))
+        (read-iso-media-stream-boxes stream
+                                     (- limit (first box))
+                                     (cons box acc)))
+      acc))
+
 (defun read-iso-media-stream (stream)
   (loop for box = (read-iso-media-box stream)
      while box
