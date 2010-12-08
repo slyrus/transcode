@@ -1,6 +1,7 @@
 
 (eval-when (:compile-toplevel :load-toplevel)
-  (asdf:oos 'asdf:load-op 'cl-fad)) 
+  (asdf:oos 'asdf:load-op 'cl-fad)
+  (asdf:oos 'asdf:load-op 'flexi-streams)) 
 
 (cl:defpackage #:transcode
   (:use #:cl))
@@ -35,15 +36,38 @@
             (box-data (read-n-bytes stream (- box-size 8))))
         (list box-size box-type box-data)))))
 
-(defun get-file-type (file)
-  (with-open-file (in file :element-type '(unsigned-byte 8))
-    (read-iso-media-box in)))
+(defun read-iso-media-box-info (stream)
+  (let* ((box-size (read-32-bit-int stream))
+         (box-type (read-n-bytes stream 4)))
+    (print (list box-size box-type))
+    (list box-size box-type)))
 
-(defun read-iso-media-boxes (file)
-  (with-open-file (in file :element-type '(unsigned-byte 8))
-    (loop for box = (read-iso-media-box in)
-       while box
-       collect box)))
+(defun get-file-type (file)
+  (with-open-file (stream file :element-type '(unsigned-byte 8))
+    (read-iso-media-box stream)))
+
+(defun iso-media-box-data (type size stream)
+  (read-n-bytes stream size))
+
+(defun do-iso-media-stream (stream fn)
+  (declare (optimize (debug 3)))
+  (loop for (size type) = (read-iso-media-box-info stream)
+     while (and size (plusp size)) 
+     collect (funcall fn type size stream)))
+
+(defun do-iso-media-file (file fn)
+  (declare (optimize (debug 3)))
+  (with-open-file (stream file :element-type '(unsigned-byte 8))
+    (do-iso-media-stream stream fn)))
+
+(defun read-iso-media-stream (stream)
+  (loop for box = (read-iso-media-box stream)
+     while box
+     collect box))
+
+(defun read-iso-media-file (file)
+  (with-open-file (stream file :element-type '(unsigned-byte 8))
+    (read-iso-media-stream stream)))
 
 (defun run-audio-decoder (src &key (input-type :apple-lossless))
   (case input-type
