@@ -67,15 +67,14 @@
 ;; NOTE!!! remember that the size of the data we want to read is 8
 ;; less than the size of the box! We could fix that here, but
 ;; currently we're relying on the caller to make that adjustment!
-(defun read-iso-media-box-data (type size stream)
-  (declare (ignore type))
+(defun read-iso-media-box-data (size stream)
   (read-n-bytes stream size))
 
 (defun read-iso-media-box (stream)
   (destructuring-bind (box-size box-type)
       (read-iso-media-box-info stream)
     (when box-size
-      (let ((box-data (read-iso-media-box-data box-type (- box-size 8) stream)))
+      (let ((box-data (read-iso-media-box-data (- box-size 8) stream)))
         (list box-size box-type box-data)))))
 
 (defun do-iso-media-stream (stream fn)
