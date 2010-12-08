@@ -54,11 +54,14 @@
     (do-iso-media-stream stream #'read-iso-media-box-data)))
 
 (let ((file *test-file*))
-  (do-iso-media-file file (lambda (type size stream)
+  (do-iso-media-file file (lambda (size type stream)
                             (cond
                               ((equalp type (map 'vector #'char-code "moov"))
-                               ())
+                               (list (list size (media-type-string type))
+                                     (map 'list (lambda (box)
+                                                  (destructuring-bind (box-size box-type box-data) box
+                                                    (list box-size (media-type-string box-type) (length box-data))))
+                                          (transcode::read-iso-media-stream-boxes stream size))))
                               (t (read-iso-media-box-data type (- size 8) stream)
-                                 (list (map 'string #'code-char type) size))))))
-
+                                 (list (media-type-string type) size))))))
 

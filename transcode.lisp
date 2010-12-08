@@ -81,7 +81,7 @@
 (defun do-iso-media-stream (stream fn)
   (loop for (size type) = (read-iso-media-box-info stream)
      while (and size (plusp size)) 
-     collect (funcall fn type size stream)))
+     collect (funcall fn size type stream)))
 
 (defun do-iso-media-file (file fn)
   (with-open-file (stream file :element-type '(unsigned-byte 8))
