@@ -30,7 +30,7 @@
        (iso-media-box-data
         (find-box-type "udta"
                        (iso-media-box-data
-                        (find-box-type "moov" (read-iso-media-file file)))))) )
+                        (find-box-type "moov" (read-iso-media-file file)))))))
 
 (let ((file *test-file*))
   (iso-media-box-data
