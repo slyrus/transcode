@@ -30,6 +30,16 @@
 (defparameter *audio-source-root-directory* #p"/mnt/iTunes_Music/")
 (defparameter *audio-destination-root-directory* #p"/mnt/iTunes_Music/AAC/")
 
+(defclass iso-media-box ()
+  ((iso-media-box-size :accessor iso-media-box-size :initarg :iso-media-box-size)
+   (iso-media-box-type :accessor iso-media-box-type :initarg :iso-media-box-type)
+   (iso-media-box-data :accessor iso-media-box-data :initarg :iso-media-box-data)))
+
+(defun make-iso-media-box (size type data)
+  (make-instance 'iso-media-box
+                 :iso-media-box-size size
+                 :iso-media-box-type type
+                 :iso-media-box-data data))
 ;;; filesystem utilities
 
 (defun recursively-list-files (dir &key test)
