@@ -13,14 +13,14 @@
   (map 'list
        (lambda (x)
          (list (first x)
-               (map 'string #'code-char (second x))
+               (media-type-string (second x))
                (length (third x))))
        (read-iso-media-file file)))
 
 (defun iso-box-info (iso-boxes)
   (map 'list
        (lambda (x)
-         (list (map 'string #'code-char (second x))
+         (list (media-type-string 'string #'code-char (second x))
                (length (third x))))
        iso-boxes))
 
