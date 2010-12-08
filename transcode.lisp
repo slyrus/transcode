@@ -8,6 +8,7 @@
   (:export #:recursively-list-files
            #:read-n-bytes
            #:read-32-bit-int
+           #:media-type-string
 
            #:read-iso-media-box-info
            #:read-iso-media-box-data
@@ -50,6 +51,9 @@
       (read-n-bytes stream 4)
     (when (= bytes-read 4)
       (reduce (lambda (x y) (+ (ash x 8) y)) buf))))
+
+(defun media-type-string (type-int)
+  (map 'string #'code-char type-int))
 
 ;;
 ;; reading ISO media files
