@@ -1,6 +1,11 @@
 
 (in-package #:transcode)
 
+(cl:defpackage #:transcode-scratch
+  (:use #:cl #:transcode))
+
+(cl:in-package #:transcode-scratch)
+
 (defparameter *test-file*
   #P"/mnt/iTunes_Music/ALAC/The Microscopic Septet/Friday The Thirteenth_ The Micros Play Monk/01 Brilliant Corners.m4a")
 

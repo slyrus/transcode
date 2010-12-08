@@ -4,7 +4,25 @@
   (asdf:oos 'asdf:load-op 'flexi-streams)) 
 
 (cl:defpackage #:transcode
-  (:use #:cl))
+  (:use #:cl)
+  (:export #:recursively-list-files
+           #:read-n-bytes
+           #:read-32-bit-int
+
+           #:read-iso-media-box-info
+           #:read-iso-media-box-data
+           #:read-iso-media-box
+           
+           #:do-iso-media-stream
+           #:do-iso-media-file
+           
+           #:read-iso-media-stream
+           #:read-iso-media-file
+           
+           #:run-audio-decoder
+           #:run-audio-encoder
+           
+           #:convert-audio-directory))
 
 (cl:in-package #:transcode)
 
