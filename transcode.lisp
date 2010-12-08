@@ -14,11 +14,14 @@
            #:recursively-list-files
            #:read-n-bytes
            #:read-32-bit-int
+
            #:media-type-string
+           #:find-box-type
 
            #:read-iso-media-box-info
            #:read-iso-media-box-data
            #:read-iso-media-box
+           #:read-iso-media-boxes
            
            #:do-iso-media-stream
            #:do-iso-media-file
@@ -35,6 +38,16 @@
 
 (defparameter *audio-source-root-directory* #p"/mnt/iTunes_Music/")
 (defparameter *audio-destination-root-directory* #p"/mnt/iTunes_Music/AAC/")
+
+
+(defun media-type-string (type-int)
+  (map 'string #'code-char type-int))
+
+(defun find-box-type (type box-list)
+  (find (map 'vector #'char-code type)
+        box-list
+        :key #'transcode:iso-media-box-type
+        :test #'equalp))
 
 (defclass iso-media-box ()
   ((iso-media-box-size :accessor iso-media-box-size :initarg :iso-media-box-size)
@@ -75,14 +88,12 @@
     (when (= bytes-read 4)
       (reduce (lambda (x y) (+ (ash x 8) y)) buf))))
 
-(defun media-type-string (type-int)
-  (map 'string #'code-char type-int))
-
 ;;
 ;; reading ISO media files
 ;; spec can be found here: http://standards.iso.org/ittf/PubliclyAvailableStandards/c041828_ISO_IEC_14496-12_2005(E).zip
 ;;
 (defun read-iso-media-box-info (stream)
+  ;; FIXME need to handle 64-bit sizes here!!!
   (let* ((box-size (read-32-bit-int stream))
          (box-type (read-n-bytes stream 4)))
     (list box-size box-type)))
@@ -98,7 +109,7 @@
       (read-iso-media-box-info stream)
     (when box-size
       (let ((box-data (read-iso-media-box-data (- box-size 8) stream)))
-        (list box-size box-type box-data)))))
+        (make-iso-media-box box-size box-type box-data)))))
 
 (defun do-iso-media-stream (stream fn)
   (loop for (size type) = (read-iso-media-box-info stream)
