@@ -11,12 +11,16 @@
 (defparameter *audio-source-root-directory* #p"/mnt/iTunes_Music/")
 (defparameter *audio-destination-root-directory* #p"/mnt/iTunes_Music/AAC/")
 
+;;; filesystem utilities
+
 (defun recursively-list-files (dir &key test)
   (let ((files))
     (apply #'fad:walk-directory dir (lambda (f) (push f files))
            (append '(:directories nil)
                    (when test `(:test ,test))))
     (nreverse files)))
+
+;;; stream reading utlities
 
 (defun read-n-bytes (stream n)
   (let ((buf (make-array n :element-type '(unsigned-byte 8))))
@@ -29,34 +33,35 @@
     (when (= bytes-read 4)
       (reduce (lambda (x y) (+ (ash x 8) y)) buf))))
 
-(defun read-iso-media-box (stream)
-  (let* ((box-size (read-32-bit-int stream)))
-    (when box-size
-      (let ((box-type (read-n-bytes stream 4))
-            (box-data (read-n-bytes stream (- box-size 8))))
-        (list box-size box-type box-data)))))
-
+;;
+;; reading ISO media files
+;; spec can be found here: http://standards.iso.org/ittf/PubliclyAvailableStandards/c041828_ISO_IEC_14496-12_2005(E).zip
+;;
 (defun read-iso-media-box-info (stream)
   (let* ((box-size (read-32-bit-int stream))
          (box-type (read-n-bytes stream 4)))
-    (print (list box-size box-type))
     (list box-size box-type)))
 
-(defun get-file-type (file)
-  (with-open-file (stream file :element-type '(unsigned-byte 8))
-    (read-iso-media-box stream)))
-
-(defun iso-media-box-data (type size stream)
+;; NOTE!!! remember that the size of the data we want to read is 8
+;; less than the size of the box! We could fix that here, but
+;; currently we're relying on the caller to make that adjustment!
+(defun read-iso-media-box-data (type size stream)
+  (declare (ignore type))
   (read-n-bytes stream size))
 
+(defun read-iso-media-box (stream)
+  (destructuring-bind (box-size box-type)
+      (read-iso-media-box-info stream)
+    (when box-size
+      (let ((box-data (read-iso-media-box-data box-type (- box-size 8) stream)))
+        (list box-size box-type box-data)))))
+
 (defun do-iso-media-stream (stream fn)
-  (declare (optimize (debug 3)))
   (loop for (size type) = (read-iso-media-box-info stream)
      while (and size (plusp size)) 
      collect (funcall fn type size stream)))
 
 (defun do-iso-media-file (file fn)
-  (declare (optimize (debug 3)))
   (with-open-file (stream file :element-type '(unsigned-byte 8))
     (do-iso-media-stream stream fn)))
 
