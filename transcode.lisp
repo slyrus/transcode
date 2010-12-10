@@ -54,7 +54,7 @@
                    nil)
                   ((equal (pathname-type src) "flac")
                    nil)
-                  ((find (pathanme-type src) '("mp4" "m4a") :test 'equal)))
+                  ((find (pathname-type src) '("mp4" "m4a") :test 'equal)))
                 (let* ((input-type (or input-type (audio-sample-type (read-iso-media-file src)))) 
                        (decoder (apply #'run-audio-decoder
                                        src
