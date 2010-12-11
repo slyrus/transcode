@@ -15,24 +15,31 @@
 
 (cl:in-package #:transcode)
 
-(defparameter *audio-source-root-directory* #p"/Volume/iTunes_Music/Archive/")
-(defparameter *audio-destination-root-directory* #p"/Volume/iTunes_Music/Active/")
+(defparameter *audio-source-root-directory* #P"/Volumes/iTunes_music/Archive/")
+(defparameter *audio-destination-root-directory* #p"/Volumes/iTunes_music/Active/")
 
 (defun run-audio-decoder (src &key (input-type "alac"))
   (case (intern input-type)
-    (#.(intern "alac") (sb-ext:run-program "/usr/bin/alac-decoder"
-                                         (list (sb-ext:native-namestring src))
-                                         :output :stream
-                                         :wait nil))
+    (#.(intern "alac")
+       (sb-ext:run-program "/usr/bin/alac-decoder"
+                           (list (sb-ext:native-namestring src))
+                           :output :stream
+                           :wait nil))
+    (#.(intern "mp4a")
+       (sb-ext:run-program "/usr/bin/faad"
+                           (list (sb-ext:native-namestring src))
+                           :output :stream
+                           :wait nil))
     (t (format *error-output* "~&No decoder for ~s" src))))
 
 (defun run-audio-encoder (input dest &key (output-type "mp4a"))
   (case (intern output-type)
-    (#.(intern "mp4a") (sb-ext:run-program "/usr/bin/faac"
-                      `("-o"
-                        ,(sb-ext:native-namestring dest)
-                        "-")
-                      :input input))))
+    (#.(intern "mp4a")
+       (sb-ext:run-program "/usr/bin/faac"
+                           `("-o"
+                             ,(sb-ext:native-namestring dest)
+                             "-")
+                           :input input))))
 
 (defun is-file-p (f)
   (and (fad:file-exists-p f)
@@ -62,8 +69,10 @@
   (let ((files
          (recursively-list-files srcdir :test (lambda (x) (not (apple-cruft-file-p x))))))
     (mapcar (lambda (src)
+              (print src)
               (let ((dest (merge-pathnames (enough-namestring src *audio-source-root-directory*)
                                            *audio-destination-root-directory*)))
+                (print dest)
                 (ensure-directories-exist dest)
                 (cond
                   ((find (string-downcase (pathname-type src)) '("mp4" "m4a") :test 'equal)
@@ -129,58 +138,3 @@
        *music-files*))
 
 
-;;;
-
-(remove-duplicates
- (mapcar #'pathname-type
-         (recursively-list-files #P"/Volumes/iTunes_music/Archive/"
-                                 :test (lambda (x) (not (apple-cruft-file-p x)))))
- :test 'equal)
-
-(remove-if-not
- (lambda (x) (equal (pathname-type x) "mov"))
- (recursively-list-files #P"/Volumes/iTunes_music/Archive/"
-                         :test (lambda (x) (not (apple-cruft-file-p x)))))
-
-(remove-if-not
- (lambda (f) (equal (pathname-type f) NIL))
- (recursively-list-files #P"/Volumes/iTunes_music/Archive/"
-                         :test (lambda (x) (not (apple-cruft-file-p x)))))
-
-
-(let ((files)
-      (test (lambda (x) (not (apple-cruft-file-p x)))))
-  (apply #'fad:walk-directory  #P"/Volumes/iTunes_music/Archive/Wilco/"
-         (lambda (f) (when (fad:file-exists-p f)
-                       (push f files)))
-         :test test
-         :directories nil
-         (when test `(:test ,test)))
-    (nreverse files))
-
-
-(remove-if-not
- (lambda (x) (equal (pathname-type x) "m4r"))
- *music-files*)
-
-(remove-duplicates (mapcar #'pathname-type *music-files*) :test 'equal)
-
-(let (x)
-  (maphash (lambda (k v) (push (list k (length v)) x))
-           *file-type-hash*)
-  (nreverse x))
-
-
-;; (("mp3" 32673)
-;;  ("MP3" 100)
-;;  ("m4a" 35840)
-;;  ("mp4" 26)
-;;  ("pdf" 4)
-;;  ("mpg" 4)
-;;  ("mov" 2))
-
-#p"/Compilations/Wicked (Original Broadway Cast Recording)/.AppleDouble/01 No One Mourns the Wicked.m4a"
-
-(setf *music-files*
-      (recursively-list-files #P"/Volumes/iTunes_music/Archive/Compilations/Wicked (Original Broadway Cast Recording)"
-                              :test (lambda (x) (not (apple-cruft-file-p x)))))
