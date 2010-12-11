@@ -15,8 +15,8 @@
 
 (cl:in-package #:transcode)
 
-(defparameter *audio-source-root-directory* #P"/Volumes/iTunes_music/Archive/")
-(defparameter *audio-destination-root-directory* #p"/Volumes/iTunes_music/Active/")
+(defparameter *audio-source-root-directory* #P"/mnt/iTunes_music/Archive/")
+(defparameter *audio-destination-root-directory* #p"/mnt/iTunes_music/Active/")
 
 (defun run-audio-decoder (src &key (input-type "alac"))
   (case (intern input-type)
@@ -27,7 +27,7 @@
                            :wait nil))
     (#.(intern "mp4a")
        (sb-ext:run-program "/usr/bin/faad"
-                           (list (sb-ext:native-namestring src))
+                           (list "-q" "-w" (sb-ext:native-namestring src))
                            :output :stream
                            :wait nil))
     (t (format *error-output* "~&No decoder for ~s" src))))
@@ -65,38 +65,50 @@
         (and (>= (length name) 2)
              (equal "._" (subseq name 0 2))))))
 
+
 (defun convert-audio-directory (srcdir &key input-type output-type)
   (let ((files
          (recursively-list-files srcdir :test (lambda (x) (not (apple-cruft-file-p x))))))
     (mapcar (lambda (src)
-              (print src)
               (let ((dest (merge-pathnames (enough-namestring src *audio-source-root-directory*)
                                            *audio-destination-root-directory*)))
-                (print dest)
+                (when (equalp src dest)
+                  (error "same src ~S and destination ~S" src dest))
                 (ensure-directories-exist dest)
                 (cond
                   ((find (string-downcase (pathname-type src)) '("mp4" "m4a") :test 'equal)
-                   (let* ((input-type (or input-type (audio-sample-type (read-iso-media-file src)))) 
-                          (decoder (apply #'run-audio-decoder
-                                          src
-                                          (when input-type (list :input-type input-type))))
-                          (encoder (apply #'run-audio-encoder 
-                                          (sb-ext:process-output decoder)
-                                          dest
-                                          (when output-type (list output-type)))))
-                     (cond ((not (zerop (sb-ext:process-exit-code decoder)))
-                            (with-output-to-string (str)
-                              (fad:copy-stream (sb-ext:process-error decoder) str)
-                              str)) 
-                           ((not (zerop (sb-ext:process-exit-code encoder)))
-                            (with-output-to-string (str)
-                              (fad:copy-stream (sb-ext:process-error encoder) str)
-                              str))
-                           (t dest))))
+                   (let ((input-type (or input-type (audio-sample-type (read-iso-media-file src)))) )
+                     (cond
+                       ((equal input-type "mp4a")
+                        (fad:copy-file src dest :overwrite t)
+                        dest)
+                       ((equal input-type "alac")
+                        (print (list src dest))
+                        (let* ((decoder (apply #'run-audio-decoder
+                                               src
+                                               (when input-type (list :input-type input-type))))
+                               (encoder (apply #'run-audio-encoder 
+                                               (sb-ext:process-output decoder)
+                                               dest
+                                               (when output-type (list :output-type output-type)))))
+                          (cond ((and (sb-ext:process-exit-code decoder)
+                                      (not (zerop (sb-ext:process-exit-code decoder))))
+                                 (with-output-to-string (str)
+                                   (fad:copy-stream (sb-ext:process-error decoder) str)
+                                   str)) 
+                                ((and (sb-ext:process-exit-code encoder)
+                                      (not (zerop (sb-ext:process-exit-code encoder))))
+                                 (with-output-to-string (str)
+                                   (fad:copy-stream (sb-ext:process-error encoder) str)
+                                   str))
+                                (t 
+                                 dest))
+                          (sb-ext:process-close encoder)
+                          (sb-ext:process-close decoder))))))
                   ((find (string-downcase (pathname-type src)) '("mp3") :test 'equal)
-                   (fad:copy-file src dest))
+                   (fad:copy-file src dest :overwrite t))
                   (t
-                   (print "Ignoring: ~s" src)))))
+                   (format *error-output* "Ignoring: ~s" src)))))
             files)))
 
 (defun read-audio-directory-info (srcdir &key debug-limit)
@@ -114,7 +126,7 @@
 (defvar *file-type-hash* (make-hash-table :test 'equal))
 (defvar *codec-hash* (make-hash-table :test 'equal))
 
-(defun update-music-db (&optional (dir #P"/Volumes/iTunes_music/Archive/"))
+(defun update-music-db (&optional (dir #P"/mnt/iTunes_music/Archive/"))
   (setf *music-files*
         (recursively-list-files dir
                                 :test (lambda (x) (not (apple-cruft-file-p x)))))
