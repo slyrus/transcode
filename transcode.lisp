@@ -2,21 +2,7 @@
 ;;; TODO: get mp3, mp4 or AAC stream as appropriate!
 ;;;
 
-(eval-when (:compile-toplevel :load-toplevel)
-  (asdf:oos 'asdf:load-op 'iso-media)
-  (asdf:oos 'asdf:load-op 'cl-fad)) 
-
-(cl:defpackage #:transcode
-  (:use #:cl #:iso-media)
-  (:export #:run-audio-decoder
-           #:run-audio-encoder
-           
-           #:convert-audio-directory))
-
 (cl:in-package #:transcode)
-
-(defparameter *audio-source-root-directory* #P"/mnt/iTunes_music/Archive/")
-(defparameter *audio-destination-root-directory* #p"/mnt/iTunes_music/Active/")
 
 (defun run-audio-decoder (src &key (input-type "alac"))
   (case (intern input-type)
@@ -30,6 +16,13 @@
                            (list "-q" "-w" (sb-ext:native-namestring src))
                            :output :stream
                            :wait nil))
+    (#.(intern "flac")
+       (sb-ext:run-program "/usr/bin/flac"
+                           (list "-c" "-d" (sb-ext:native-namestring src))
+                           :output :stream
+                           :error :stream
+                           :if-error-exists :supersede
+                           :wait nil))
     (t (format *error-output* "~&No decoder for ~s" src))))
 
 (defun run-audio-encoder (input dest &key (output-type "mp4a"))
@@ -39,6 +32,7 @@
                            `("-o"
                              ,(sb-ext:native-namestring dest)
                              "-")
+                           :error :stream
                            :input input))))
 
 (defun is-file-p (f)
@@ -77,7 +71,7 @@
                 (ensure-directories-exist dest)
                 (cond
                   ((find (string-downcase (pathname-type src)) '("mp4" "m4a") :test 'equal)
-                   (let ((input-type (or input-type (audio-sample-type (read-iso-media-file src)))) )
+                   (let ((input-type (or input-type (audio-sample-type (read-iso-media-file src)))))
                      (cond
                        ((equal input-type "mp4a")
                         (fad:copy-file src dest :overwrite t)
@@ -105,10 +99,106 @@
                                  dest))
                           (sb-ext:process-close encoder)
                           (sb-ext:process-close decoder))))))
+                  ((find (string-downcase (pathname-type src)) '("flac") :test 'equal)
+                   (print (list src dest))
+                   (let* ((decoder (run-audio-decoder src :input-type "flac"))
+                          (encoder (apply #'run-audio-encoder 
+                                          (sb-ext:process-output decoder)
+                                          (merge-pathnames (make-pathname :type "m4a") dest)
+                                          (when output-type (list :output-type output-type)))))
+                     (cond ((and (sb-ext:process-exit-code decoder)
+                                 (not (zerop (sb-ext:process-exit-code decoder))))
+                            (with-output-to-string (str)
+                              (fad:copy-stream (sb-ext:process-error decoder) str)
+                              str)) 
+                           ((and (sb-ext:process-exit-code encoder)
+                                 (not (zerop (sb-ext:process-exit-code encoder))))
+                            (describe encoder)
+                            (with-output-to-string (str)
+                              (fad:copy-stream (sb-ext:process-error encoder) str)
+                              str))
+                           (t 
+                            dest))
+                     (sb-ext:process-close encoder)
+                     (sb-ext:process-close decoder)))
                   ((find (string-downcase (pathname-type src)) '("mp3") :test 'equal)
                    (fad:copy-file src dest :overwrite t))
                   (t
                    (format *error-output* "Ignoring: ~s" src)))))
+            files)))
+
+#+nil
+(defun convert-audio-tags (srcdir &key input-type output-type)
+  (let ((files
+         (recursively-list-files srcdir :test (lambda (x) (not (apple-cruft-file-p x))))))
+    (mapcar (lambda (src)
+              (let ((dest (merge-pathnames (enough-namestring src *audio-source-root-directory*)
+                                           *audio-destination-root-directory*)))
+                (when (equalp src dest)
+                  (error "same src ~S and destination ~S" src dest))
+                (ensure-directories-exist dest)
+                (cond
+                  ((find (string-downcase (pathname-type src)) '("mp4" "m4a") :test 'equal)
+                   (let ((input-type (or input-type (audio-sample-type (read-iso-media-file src)))) )
+                     (cond
+                       ((equal input-type "mp4a")
+                        t)
+                       ((equal input-type "alac")
+                        (print (list src dest))
+                        ;;; use ffmpeg to extract tags from src and apply to src
+                        
+                        (sb-ext:run-program "/usr/bin/ffmpeg -map_meta_data "
+                                            (list (format nil "~A:~A"
+                                                          (sb-ext:native-namestring dest)
+                                                          (sb-ext:native-namestring src)))
+                                            
+                                            
+                                            ;; broken
+                                            )))))
+                  ((find (string-downcase (pathname-type src)) '("mp3") :test 'equal)
+                   (fad:copy-file src dest :overwrite t))
+                  (t
+                   (format *error-output* "Ignoring: ~s" src)))))
+            files)))
+
+(defun copy-iso-tags (srcdir)
+  (let ((files
+         (recursively-list-files srcdir :test (lambda (x) (not (apple-cruft-file-p x))))))
+    (mapcar (lambda (src)
+              (let ((dest (merge-pathnames (enough-namestring src *audio-source-root-directory*)
+                                           *audio-destination-root-directory*)))
+                (when (equalp src dest)
+                  (error "same src ~S and destination ~S" src dest))
+                (ensure-directories-exist dest)
+                (cond
+                  ((find (string-downcase (pathname-type src)) '("mp4" "m4a") :test 'equal)
+                   (let* ((src-container (read-iso-media-file src))
+                          (input-type (audio-sample-type src-container)))
+                     (cond
+                       ((equal input-type "alac")
+                        ;; here we should copy the ISO tags from src to dest!!!!
+                        (let ((dest-container (read-iso-media-file dest)))
+                          (print (list src dest))
+                          (let ((src-ilst-box
+                                 (reduce #'find-child '("moov" "udta" "meta" "ilst")
+                                         :initial-value src-container))
+                                (dest-ilst-box
+                                 (reduce #'find-child '("moov" "udta" "meta" "ilst")
+                                         :initial-value dest-container)))
+                            (let ((dest-box-children-types
+                                   (map 'list #'box-type (children dest-ilst-box))))
+                              (loop for box in (children src-ilst-box)
+                                 do
+                                   (unless (member (box-type box) dest-box-children-types
+                                                   :test 'equal)
+                                     (pushnew box (children dest-ilst-box)
+                                              :key #'box-type :test 'equal)))
+                              (setf (children dest-ilst-box)
+                                    (nreverse (children dest-ilst-box))))
+                            (iso-media::update-size dest-ilst-box))                          
+                          (iso-media::update-stco-box dest-container)
+                          (write-iso-media-file dest dest-container)
+                          dest))))))))
             files)))
 
 (defun read-audio-directory-info (srcdir &key debug-limit)
@@ -150,3 +240,20 @@
        *music-files*))
 
 
+;;; "optimizing files"
+
+(defun optimize-files-in-directory (srcdir)
+  (let ((files
+         (recursively-list-files srcdir :test (lambda (x) (not (apple-cruft-file-p x))))))
+    (mapcar (lambda (src)
+              (cond
+                ((find (string-downcase (pathname-type src)) '("mp4" "m4a") :test 'equal)
+                 (restart-case
+                     (let ((iso-container (iso-media:read-iso-media-file src)))
+                       (unless (iso-media:iso-container-optimized-p iso-container)
+                         (format *standard-output* "~&Optimizing: ~s~%" src)
+                         (iso-media:write-iso-media-file src iso-container :optimize t)))
+                   (skip-file () nil)))
+                (t
+                 (format *error-output* "~&Ignoring: ~s~%" src))))
+            files)))
