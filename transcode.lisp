@@ -96,6 +96,7 @@
                                    (fad:copy-stream (sb-ext:process-error encoder) str)
                                    str))
                                 (t 
+                                 (copy-iso-tags src dest)
                                  dest))
                           (sb-ext:process-close encoder)
                           (sb-ext:process-close decoder))))))
@@ -113,11 +114,11 @@
                               str)) 
                            ((and (sb-ext:process-exit-code encoder)
                                  (not (zerop (sb-ext:process-exit-code encoder))))
-                            (describe encoder)
                             (with-output-to-string (str)
                               (fad:copy-stream (sb-ext:process-error encoder) str)
                               str))
                            (t 
+                            (copy-iso-tags src dest)
                             dest))
                      (sb-ext:process-close encoder)
                      (sb-ext:process-close decoder)))
@@ -161,44 +162,47 @@
                    (format *error-output* "Ignoring: ~s" src)))))
             files)))
 
-(defun copy-iso-tags (srcdir)
+(defun copy-iso-tags (src dest)
+  (when (equalp src dest)
+    (error "same src ~S and destination ~S" src dest))
+  (ensure-directories-exist dest)
+  (cond
+    ((find (string-downcase (pathname-type src)) '("mp4" "m4a") :test 'equal)
+     (let* ((src-container (read-iso-media-file src))
+            (input-type (audio-sample-type src-container)))
+       (cond
+         ((equal input-type "alac")
+          ;; here we should copy the ISO tags from src to dest!!!!
+          (let ((dest-container (read-iso-media-file dest)))
+            (print (list src dest))
+            (let ((src-ilst-box
+                   (reduce #'find-child '("moov" "udta" "meta" "ilst")
+                           :initial-value src-container))
+                  (dest-ilst-box
+                   (reduce #'find-child '("moov" "udta" "meta" "ilst")
+                           :initial-value dest-container)))
+              (let ((dest-box-children-types
+                     (map 'list #'box-type (children dest-ilst-box))))
+                (loop for box in (children src-ilst-box)
+                   do
+                   (unless (member (box-type box) dest-box-children-types
+                                   :test 'equal)
+                     (pushnew box (children dest-ilst-box)
+                              :key #'box-type :test 'equal)))
+                (setf (children dest-ilst-box)
+                      (nreverse (children dest-ilst-box))))
+              (iso-media::update-size dest-ilst-box))                          
+            (iso-media::update-stco-box dest-container)
+            (write-iso-media-file dest dest-container)
+            dest)))))))
+
+(defun copy-iso-tags-for-files-in-directory (srcdir)
   (let ((files
          (recursively-list-files srcdir :test (lambda (x) (not (apple-cruft-file-p x))))))
     (mapcar (lambda (src)
               (let ((dest (merge-pathnames (enough-namestring src *audio-source-root-directory*)
                                            *audio-destination-root-directory*)))
-                (when (equalp src dest)
-                  (error "same src ~S and destination ~S" src dest))
-                (ensure-directories-exist dest)
-                (cond
-                  ((find (string-downcase (pathname-type src)) '("mp4" "m4a") :test 'equal)
-                   (let* ((src-container (read-iso-media-file src))
-                          (input-type (audio-sample-type src-container)))
-                     (cond
-                       ((equal input-type "alac")
-                        ;; here we should copy the ISO tags from src to dest!!!!
-                        (let ((dest-container (read-iso-media-file dest)))
-                          (print (list src dest))
-                          (let ((src-ilst-box
-                                 (reduce #'find-child '("moov" "udta" "meta" "ilst")
-                                         :initial-value src-container))
-                                (dest-ilst-box
-                                 (reduce #'find-child '("moov" "udta" "meta" "ilst")
-                                         :initial-value dest-container)))
-                            (let ((dest-box-children-types
-                                   (map 'list #'box-type (children dest-ilst-box))))
-                              (loop for box in (children src-ilst-box)
-                                 do
-                                   (unless (member (box-type box) dest-box-children-types
-                                                   :test 'equal)
-                                     (pushnew box (children dest-ilst-box)
-                                              :key #'box-type :test 'equal)))
-                              (setf (children dest-ilst-box)
-                                    (nreverse (children dest-ilst-box))))
-                            (iso-media::update-size dest-ilst-box))                          
-                          (iso-media::update-stco-box dest-container)
-                          (write-iso-media-file dest dest-container)
-                          dest))))))))
+                (copy-iso-tags src dest)))
             files)))
 
 (defun read-audio-directory-info (srcdir &key debug-limit)
