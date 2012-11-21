@@ -10,11 +10,13 @@
        (sb-ext:run-program "/usr/bin/alac-decoder"
                            (list (sb-ext:native-namestring src))
                            :output :stream
+                           :error :stream
                            :wait nil))
     (#.(intern "mp4a")
        (sb-ext:run-program "/usr/bin/faad"
                            (list "-q" "-w" (sb-ext:native-namestring src))
                            :output :stream
+                           :error :stream
                            :wait nil))
     (#.(intern "flac")
        (sb-ext:run-program "/usr/bin/flac"
