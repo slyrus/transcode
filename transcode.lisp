@@ -68,7 +68,8 @@
          (recursively-list-files srcdir :test (lambda (x) (not (apple-cruft-file-p x))))))
     (mapcar (lambda (src)
               (let ((dest (merge-pathnames (enough-namestring src *audio-source-root-directory*)
-                                           *audio-destination-root-directory*)))
+                                           *audio-destination-root-directory*))
+                    copy-tags)
                 (when (equalp src dest)
                   (error "same src ~S and destination ~S" src dest))
                 (ensure-directories-exist dest)
@@ -99,7 +100,7 @@
                                    (fad:copy-stream (sb-ext:process-error encoder) str)
                                    str))
                                 (t 
-                                 (copy-iso-tags src dest)
+                                 (setf copy-tags t)
                                  dest))
                           (sb-ext:process-close encoder)
                           (sb-ext:process-close decoder))))))
@@ -117,18 +118,19 @@
                               str)) 
                            ((and (sb-ext:process-exit-code encoder)
                                  (not (zerop (sb-ext:process-exit-code encoder))))
-                            (with-output-to-string (str)
-                              (fad:copy-stream (sb-ext:process-error encoder) str)
-                              str))
+                            (error "Encoding error ~A." (sb-ext:process-exit-code encoder)))
                            (t 
-                            (copy-iso-tags src dest)
+                            (setf copy-tags t)
                             dest))
                      (sb-ext:process-close encoder)
                      (sb-ext:process-close decoder)))
                   ((find (string-downcase (pathname-type src)) '("mp3") :test 'equal)
                    (fad:copy-file src dest :overwrite t))
                   (t
-                   (format *error-output* "Ignoring: ~s" src)))))
+                   (format *error-output* "Ignoring: ~s" src)))
+                (when copy-tags
+                  (sb-ext:gc :full t)
+                  (copy-iso-tags src dest))))
             files)))
 
 #+nil
