@@ -133,40 +133,6 @@
                   (copy-iso-tags src dest))))
             files)))
 
-#+nil
-(defun convert-audio-tags (srcdir &key input-type output-type)
-  (let ((files
-         (recursively-list-files srcdir :test (lambda (x) (not (apple-cruft-file-p x))))))
-    (mapcar (lambda (src)
-              (let ((dest (merge-pathnames (enough-namestring src *audio-source-root-directory*)
-                                           *audio-destination-root-directory*)))
-                (when (equalp src dest)
-                  (error "same src ~S and destination ~S" src dest))
-                (ensure-directories-exist dest)
-                (cond
-                  ((find (string-downcase (pathname-type src)) '("mp4" "m4a") :test 'equal)
-                   (let ((input-type (or input-type (audio-sample-type (read-iso-media-file src)))) )
-                     (cond
-                       ((equal input-type "mp4a")
-                        t)
-                       ((equal input-type "alac")
-                        (print (list src dest))
-                        ;;; use ffmpeg to extract tags from src and apply to src
-                        
-                        (sb-ext:run-program "/usr/bin/ffmpeg -map_meta_data "
-                                            (list (format nil "~A:~A"
-                                                          (sb-ext:native-namestring dest)
-                                                          (sb-ext:native-namestring src)))
-                                            
-                                            
-                                            ;; broken
-                                            )))))
-                  ((find (string-downcase (pathname-type src)) '("mp3") :test 'equal)
-                   (fad:copy-file src dest :overwrite t))
-                  (t
-                   (format *error-output* "Ignoring: ~s" src)))))
-            files)))
-
 (defun copy-iso-tags (src dest)
   (when (equalp src dest)
     (error "same src ~S and destination ~S" src dest))
