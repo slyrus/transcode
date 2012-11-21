@@ -34,8 +34,9 @@
                            `("-o"
                              ,(sb-ext:native-namestring dest)
                              "-")
-                           :error :stream
-                           :input input))))
+                           :error nil
+                           :input input
+                           :wait t))))
 
 (defun is-file-p (f)
   (and (fad:file-exists-p f)
