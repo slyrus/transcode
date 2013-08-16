@@ -76,64 +76,65 @@
                 (when (equalp src dest)
                   (error "same src ~S and destination ~S" src dest))
                 (ensure-directories-exist dest)
-                (cond
-                  ((find (string-downcase (pathname-type src)) '("mp4" "m4a") :test 'equal)
-                   (let ((input-type (or input-type (audio-sample-type (read-iso-media-file src)))))
-                     (cond
-                       ((equal input-type "mp4a")
-                        (fad:copy-file src dest :overwrite t)
-                        dest)
-                       ((equal input-type "alac")
-                        (print (list src dest))
-                        (let* ((decoder (apply #'run-audio-decoder
-                                               src
-                                               (when input-type (list :input-type input-type))))
-                               (encoder (apply #'run-audio-encoder 
-                                               (sb-ext:process-output decoder)
-                                               dest
-                                               (when output-type (list :output-type output-type)))))
-                          (cond ((and (sb-ext:process-exit-code decoder)
-                                      (not (zerop (sb-ext:process-exit-code decoder))))
-                                 (with-output-to-string (str)
-                                   (fad:copy-stream (sb-ext:process-error decoder) str)
-                                   str)) 
-                                ((and (sb-ext:process-exit-code encoder)
-                                      (not (zerop (sb-ext:process-exit-code encoder))))
-                                 (with-output-to-string (str)
-                                   (fad:copy-stream (sb-ext:process-error encoder) str)
-                                   str))
-                                (t 
-                                 (setf copy-tags t)
-                                 dest))
-                          (sb-ext:process-close encoder)
-                          (sb-ext:process-close decoder))))))
-                  ((find (string-downcase (pathname-type src)) '("flac") :test 'equal)
-                   (print (list src dest))
-                   (let* ((decoder (run-audio-decoder src :input-type "flac"))
-                          (encoder (apply #'run-audio-encoder 
-                                          (sb-ext:process-output decoder)
-                                          (merge-pathnames (make-pathname :type "m4a") dest)
-                                          (when output-type (list :output-type output-type)))))
-                     (cond ((and (sb-ext:process-exit-code decoder)
-                                 (not (zerop (sb-ext:process-exit-code decoder))))
-                            (with-output-to-string (str)
-                              (fad:copy-stream (sb-ext:process-error decoder) str)
-                              str)) 
-                           ((and (sb-ext:process-exit-code encoder)
-                                 (not (zerop (sb-ext:process-exit-code encoder))))
-                            (error "Encoding error ~A." (sb-ext:process-exit-code encoder)))
-                           (t 
-                            (setf copy-tags t)
-                            dest))
-                     (sb-ext:process-close encoder)
-                     (sb-ext:process-close decoder)))
-                  ((find (string-downcase (pathname-type src)) '("mp3") :test 'equal)
-                   (fad:copy-file src dest :overwrite t))
-                  (t
-                   (format *error-output* "Ignoring: ~s" src)))
-                (when copy-tags
-                  (sb-ext:gc :full t)
-                  (copy-iso-tags src dest))))
+                (prog1
+                    (cond
+                      ((find (string-downcase (pathname-type src)) '("mp4" "m4a") :test 'equal)
+                       (let ((input-type (or input-type (audio-sample-type (read-iso-media-file src)))))
+                         (cond
+                           ((equal input-type "mp4a")
+                            (fad:copy-file src dest :overwrite t)
+                            dest)
+                           ((equal input-type "alac")
+                            (print (list src dest))
+                            (let* ((decoder (apply #'run-audio-decoder
+                                                   src
+                                                   (when input-type (list :input-type input-type))))
+                                   (encoder (apply #'run-audio-encoder 
+                                                   (sb-ext:process-output decoder)
+                                                   dest
+                                                   (when output-type (list :output-type output-type)))))
+                              (cond ((and (sb-ext:process-exit-code decoder)
+                                          (not (zerop (sb-ext:process-exit-code decoder))))
+                                     (with-output-to-string (str)
+                                       (fad:copy-stream (sb-ext:process-error decoder) str)
+                                       str)) 
+                                    ((and (sb-ext:process-exit-code encoder)
+                                          (not (zerop (sb-ext:process-exit-code encoder))))
+                                     (with-output-to-string (str)
+                                       (fad:copy-stream (sb-ext:process-error encoder) str)
+                                       str))
+                                    (t 
+                                     (setf copy-tags t)
+                                     dest))
+                              (sb-ext:process-close encoder)
+                              (sb-ext:process-close decoder))))))
+                      ((find (string-downcase (pathname-type src)) '("flac") :test 'equal)
+                       (print (list src dest))
+                       (let* ((decoder (run-audio-decoder src :input-type "flac"))
+                              (encoder (apply #'run-audio-encoder 
+                                              (sb-ext:process-output decoder)
+                                              (merge-pathnames (make-pathname :type "m4a") dest)
+                                              (when output-type (list :output-type output-type)))))
+                         (cond ((and (sb-ext:process-exit-code decoder)
+                                     (not (zerop (sb-ext:process-exit-code decoder))))
+                                (with-output-to-string (str)
+                                  (fad:copy-stream (sb-ext:process-error decoder) str)
+                                  str)) 
+                               ((and (sb-ext:process-exit-code encoder)
+                                     (not (zerop (sb-ext:process-exit-code encoder))))
+                                (error "Encoding error ~A." (sb-ext:process-exit-code encoder)))
+                               (t 
+                                (setf copy-tags t)
+                                dest))
+                         (sb-ext:process-close encoder)
+                         (sb-ext:process-close decoder)))
+                      ((find (string-downcase (pathname-type src)) '("mp3") :test 'equal)
+                       (fad:copy-file src dest :overwrite t))
+                      (t
+                       (format *error-output* "Ignoring: ~s" src)))
+                  (when copy-tags
+                    (sb-ext:gc :full t)
+                    (copy-iso-tags src dest)))))
             files)))
 
 (defun copy-iso-tags (src dest)
