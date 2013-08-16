@@ -56,12 +56,15 @@
     (or (equal name ".DS_Store")
         (equal name ".AppleDouble")
         (equal name ".Parent")
+        (equal name ":2eDS_Store")
         (equal name "_VUC69~7")
         (and (null name)
              (equal (first (last (pathname-directory f))) ".AppleDouble"))
         (and (>= (length name) 2)
              (equal "._" (subseq name 0 2))))))
 
+(defun remove-apple-cruft-files (f)
+  (loop for x in f unless (apple-cruft-file-p x) collecting x ))
 
 (defun convert-audio-directory (srcdir &key input-type output-type)
   (let ((files
