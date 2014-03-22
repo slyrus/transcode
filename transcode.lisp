@@ -66,6 +66,20 @@
 (defun remove-apple-cruft-files (f)
   (loop for x in f unless (apple-cruft-file-p x) collecting x ))
 
+(defun convert-flac-tag-to-iso-tag (iso-container tag value)
+  (case tag
+    (:title (setf (iso-media:track-name iso-container) value))
+    (:artist (setf (iso-media:artist iso-container) value))
+    (:album (setf (iso-media:album-name iso-container) value))
+    (:year (setf (iso-media:year-of-publication iso-container) value))
+    (:genre (setf (iso-media:genre iso-container) value))
+    (:track (setf (iso-media:track-number iso-container) value)))
+  iso-container)
+
+(defun convert-flac-tags-to-iso-tags (iso-container l)
+  (loop for (tag value) on l by #'cddr
+     do (convert-flac-tag-to-iso-tag iso-container tag value)))
+
 (defun convert-audio-directory (srcdir &key input-type output-type)
   (let ((files
          (recursively-list-files srcdir :test (lambda (x) (not (apple-cruft-file-p x))))))
@@ -109,11 +123,12 @@
                               (sb-ext:process-close encoder)
                               (sb-ext:process-close decoder))))))
                       ((find (string-downcase (pathname-type src)) '("flac") :test 'equal)
+                       (setf dest (merge-pathnames (make-pathname :type "m4a") dest))
                        (print (list src dest))
                        (let* ((decoder (run-audio-decoder src :input-type "flac"))
                               (encoder (apply #'run-audio-encoder 
                                               (sb-ext:process-output decoder)
-                                              (merge-pathnames (make-pathname :type "m4a") dest)
+                                              dest
                                               (when output-type (list :output-type output-type)))))
                          (cond ((and (sb-ext:process-exit-code decoder)
                                      (not (zerop (sb-ext:process-exit-code decoder))))
@@ -123,11 +138,16 @@
                                ((and (sb-ext:process-exit-code encoder)
                                      (not (zerop (sb-ext:process-exit-code encoder))))
                                 (error "Encoding error ~A." (sb-ext:process-exit-code encoder)))
-                               (t 
-                                (setf copy-tags t)
-                                dest))
+                               (t dest))
                          (sb-ext:process-close encoder)
-                         (sb-ext:process-close decoder)))
+                         (sb-ext:process-close decoder)
+                         (let ((flac-tags (flac:get-flac-tags-from-file
+                                                  (sb-ext:native-namestring src))))
+                           (let ((dest-iso (read-iso-media-file dest)))
+                             (print flac-tags)
+                             (convert-flac-tags-to-iso-tags dest-iso flac-tags)
+                             (iso-media::update-stco-box dest-iso)
+                             (write-iso-media-file dest dest-iso)))))
                       ((find (string-downcase (pathname-type src)) '("mp3") :test 'equal)
                        (fad:copy-file src dest :overwrite t))
                       (t
