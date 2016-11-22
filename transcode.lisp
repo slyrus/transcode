@@ -153,7 +153,8 @@
                          (sb-ext:process-close encoder)
                          (sb-ext:process-close decoder)
                          (let ((flac-tags (flac:get-flac-tags-from-file
-                                                  (sb-ext:native-namestring src))))
+                                           (sb-ext:native-namestring src)
+                                           :character-encoding :utf-8)))
                            (let ((dest-iso (read-iso-media-file dest)))
                              (print flac-tags)
                              (convert-flac-tags-to-iso-tags dest-iso flac-tags)
