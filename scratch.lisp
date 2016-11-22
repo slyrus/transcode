@@ -1,14 +1,63 @@
 
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  #+nil (asdf:oos 'asdf:load-op 'transcode)
-  (load "transcode.lisp"))
-
+(pushnew *default-pathname-defaults* asdf:*central-registry* :test 'equalp)
+(asdf:load-system 'transcode)
 
 (cl:in-package #:transcode)
 
+(defun listify (l)
+  (if (listp l)
+      l
+      (list l)))
+
+(defun convert-artist (l)
+  (loop for artist in (listify l) do
+       (loop for dir in
+            (directory (merge-pathnames artist *audio-source-root-directory*))
+          do (print dir)
+            (convert-audio-directory dir))))
+
+(convert-artist "Michael_Jackson")
+(convert-artist "Maurice_Tani")
+(convert-artist "Lou Reed")
+(convert-artist "Tedeschi_Trucks_Band")
+(convert-artist "Jon_Carroll_&_Love_Returns")
+(convert-artist "Jimmy_Webb")
+(convert-artist "American_Nomad")
+
+(convert-artist "The Meters")
+(convert-artist "Sex Pistols")
+(convert-artist "Aerosmith")
+(convert-artist "Van Halen")
+(convert-artist "Ozzy Osbourne")
+
+(mapcar #'convert-artist
+        '("Elvis_Costello"
+          "Bruce Springsteen"
+          "Son_House"
+          "Clarence_Gatemouth_Brown"
+          "Blind_Lemon_Jefferson"))
+
+(mapcar #'convert-artist
+        '("Elmore_James"
+          "Lightnin_Hopkins"
+          "ZZ_Top"
+          "Cream"
+          "Ike_&_Tina_Turner"
+          "Roy_Buchanan"))
+
+(mapcar #'convert-artist
+        '("Sonny_Boy_Williamson"
+          "Pretenders"))
+
+;; "Luther_Allison"
+(mapcar #'convert-artist
+        '("Magic_Sam_Blues_Band"))
+
+
 (defparameter *test-file*
   #P"/mnt/music-archive/The Microscopic Septet/Friday The Thirteenth_ The Micros Play Monk/01 Brilliant Corners.m4a")
+)
 
 (let ((file *test-file*))
   (read-iso-media-file file))
@@ -83,7 +132,7 @@
 
 (let ((src "/tmp/foo/mp4a-file.m4a")
       (dest "/tmp/foo/lame.m4a"))
-  (let* ((input-type (audio-sample-type (read-iso-media-file src))) 
+  (let* ((input-type (audio-sample-type (read-iso-media-file src)))
          (decoder (sb-ext:run-program "/usr/bin/faad"
                                       (list "-q" "-w" (sb-ext:native-namestring src))
                                       :output :stream
@@ -99,7 +148,7 @@
 
 (let ((src "/tmp/foo/alac-file.m4a")
       (dest "/tmp/foo/alac-converted.m4a"))
-  (let* ((input-type (audio-sample-type (read-iso-media-file src))) 
+  (let* ((input-type (audio-sample-type (read-iso-media-file src)))
          (decoder (sb-ext:run-program "/usr/bin/alac-decoder"
                            (list (sb-ext:native-namestring src))
                            :output :stream
@@ -249,16 +298,265 @@
    do (print dir)
      (convert-audio-directory dir))
 
-(loop for dir in (directory (merge-pathnames "John_Lith*/*" *audio-source-root-directory*))
+(loop for dir in (directory (merge-pathnames "Camper*/*" *audio-source-root-directory*))
    do (print dir)
      (convert-audio-directory dir))
 
-(let ((*audio-destination-root-directory* #p"/mnt/stor1/music/Guitar Instruction/"))
-  (loop for dir in (directory (merge-pathnames "William_Leavitt/*" *audio-source-root-directory*))
-     do (print dir)
-       (convert-audio-directory dir)))
-
-(loop for dir in (directory *audio-source-root-directory*)
+(loop for dir in (directory (merge-pathnames "Jason Collett/Here's to Being Here"
+                                             *audio-source-root-directory*))
    do (print dir)
      (convert-audio-directory dir))
 
+(loop for dir in (directory (merge-pathnames "Travis"
+                                             *audio-source-root-directory*))
+   do (print dir)
+     (convert-audio-directory dir))
+
+
+(loop for dir in (directory (merge-pathnames "Troy_Nelson"
+                                             *audio-source-root-directory*))
+   do (print dir)
+     (convert-audio-directory dir))
+
+
+(defparameter *guitar-source-root-directory* #P"/tank/music/Guitar Instruction Archive/")
+(defparameter *guitar-destination-root-directory* #P"/tank/music/Guitar Instruction/")
+
+(loop for dir in (directory (merge-pathnames "Signature*"
+                                             *guitar-source-root-directory*))
+   do (print dir)
+     (convert-audio-directory dir
+                              :source-root-directory *guitar-source-root-directory*
+                              :destination-root-directory *guitar-destination-root-directory*))
+
+
+(loop for dir in (directory (merge-pathnames "Freddie_King"
+                                             *audio-source-root-directory*))
+   do (print dir)
+     (convert-audio-directory dir))
+
+(loop for dir in (directory (merge-pathnames "Travis"
+                                             *audio-source-root-directory*))
+   do (print dir)
+     (convert-audio-directory dir))
+
+
+(loop for artist in
+     '("Sarah Vaughan"
+       "Pete Townshend"
+       "Van Halen"
+       "Toots & the Maytals"
+       "The Who"
+       "Townes Van Zandt"
+       "Rod Stewart"
+       "Freddie_King"
+       "Bobby_Blue_Bland"
+       "Albert_King"
+       "Jim_Florentine"
+       "Timbuk_3"
+       "Ike_&_Tina_Turner"
+       "Trip_Shakespeare"
+       "Caetano_Veloso_e_Gilberto_Gil")
+   do
+     (loop for dir in (directory (merge-pathnames artist *audio-source-root-directory*))
+        do (print dir)
+          (convert-audio-directory dir)))
+
+(loop for artist in
+     '("B.B._King" "Albert_Collins" "Paul_Simon" "The_Yardbirds")
+   do
+     (loop for dir in (directory (merge-pathnames artist *audio-source-root-directory*))
+        do (print dir)
+          (convert-audio-directory dir)))
+
+
+(loop for artist in
+     '("Miles Davis"
+       "Miles Davis and Bill Laswell"
+       "Miles Davis and Gil Evans"
+       "Miles Davis and John Coltrane"
+       "Miles Davis and Prince"
+       "Miles Davis and Quincy Jones"
+       "Miles Davis and Thelonious Monk"
+       "Miles Davis Quartet"
+       "Miles Davis Quintet")
+   do
+     (loop for dir in (directory (merge-pathnames artist *audio-source-root-directory*))
+        do (print dir)
+          (convert-audio-directory dir)))
+
+(loop for artist in
+     '("John Coltrane"
+       "Tom Waits"
+       "Troy Nelson"
+       "Ray Charles"
+       "Herbie Hancock"
+       "Albert King"
+       "The Streets"
+       "David Gray"
+       "The Clash"
+       "The Village Green"
+       "The Kooks"
+       "Pink Floyd"
+       "Roxy Music"
+       "Peter Gabriel"
+       "Robert Johnson"
+       "Paul Simon"
+       "The Rowan Brothers"
+       "Big Star"
+       "The Kinks"
+       "David Bowie"
+       "Bob Dylan"
+       "Led Zeppelin"
+       "The Shins"
+       "The Band"
+       "Natalie Merchant"
+       "Johnny Cash"
+       "Willie Nelson")
+   do
+     (loop for dir in (directory (merge-pathnames artist *audio-source-root-directory*))
+        do (print dir)
+          (convert-audio-directory dir)))
+
+(loop for artist in
+     '("Ali Farka Touré & Toumani Diabaté" "Alpha Blondy" "Arcade Fire" "Arctic Monkeys"
+       "Band Of Horses" "Barnes and Barnes"
+       "Beastie Boys"
+       "Benny Bell"
+       "Betty Davis"
+       "Bill_Monroe_&_Doc_Watson")
+   do
+     (loop for dir in (directory (merge-pathnames artist *audio-source-root-directory*))
+        do (print dir)
+          (convert-audio-directory dir)))
+
+(loop for artist in
+     '("Black Keys")
+   do
+     (loop for dir in (directory (merge-pathnames artist *audio-source-root-directory*))
+        do (print dir)
+          (convert-audio-directory dir)))
+
+(loop for artist in
+     '("Blind Willie McTell"
+       "Circle Jerks"
+       "Cody Simpson"
+       "Cyrus Chestnut"
+       "Delaney & Bonnie"
+       "De La Soul"
+       "Dead Kennedys"
+       "Derek & The Dominos"
+       "Ratdog"
+       "Wolfgang Amadeus Mozart")
+   do
+     (loop for dir in (directory (merge-pathnames artist *audio-source-root-directory*))
+        do (print dir)
+          (convert-audio-directory dir)))
+
+
+(loop for artist in
+     '("The Black Eyed Peas"
+       "Fugees"
+       "Lake Street Dive"
+       "The National"
+       "Leon Russell"
+       "The Dead Weather")
+   do
+     (loop for dir in (directory (merge-pathnames artist *audio-source-root-directory*))
+        do (print dir)
+          (convert-audio-directory dir)))
+
+(loop for artist in
+     '("Squeeze"
+       "The Only Ones"
+       "The Meters"
+       "Sonny Clark"
+       "Waylon Jennings")
+   do
+     (loop for dir in (directory (merge-pathnames artist *audio-source-root-directory*))
+        do (print dir)
+          (convert-audio-directory dir)))
+
+(loop for artist in
+     '("Tift Merritt"
+       "The_Paul_Butterfield_Blues_Band"
+       "The_Wrights"
+       "The Mountain Goats"
+       "The_Brothers_Johnson"
+       "Tenacious_D"
+       "Stanley_Clarke")
+   do
+     (loop for dir in (directory (merge-pathnames artist *audio-source-root-directory*))
+        do (print dir)
+          (convert-audio-directory dir)))
+
+(loop for artist in
+     '("T-Bone Walker"
+       "Seu George"
+       "The Raconteurs"
+       "of Montreal"
+       "Nine Inch Nails"
+       "Murder By Death"
+       "Mimi & Richard Fariña"
+       "Rodrigo Y Gabriela & C.U.B.A_")
+   do
+     (loop for dir in (directory (merge-pathnames artist *audio-source-root-directory*))
+        do (print dir)
+          (convert-audio-directory dir)))
+
+(loop for artist in
+     '("Kevin_Drew"
+       "Kimya_Dawson"
+       "Love Canon"
+       "Les McCann"
+       "Le Tigre"
+       "Malecon Social Club"
+       "Mark Olson"
+       "Michael_Bloomfield,_Al_Kooper,_Steve_Stills"
+       "Kaki King"
+       "Jimmy_Cliff"
+       "Junior Murvin"
+       "John_McCutcheon"
+       "Grace Potter & The Nocturnals"
+       "Great Northern"
+       "The_Uncluded")
+   do
+     (loop for dir in (directory (merge-pathnames artist *audio-source-root-directory*))
+        do (print dir)
+          (convert-audio-directory dir)))
+
+(loop for artist in
+     '("Seu Jorge"
+       "")
+   do
+     (loop for dir in (directory (merge-pathnames artist *audio-source-root-directory*))
+        do (print dir)
+          (convert-audio-directory dir)))
+
+(loop for artist in
+     '("Barrett_Tagliarino")
+   do
+     (loop for dir in (directory (merge-pathnames artist *audio-source-root-directory*))
+        do (print dir)
+          (convert-audio-directory dir)))
+
+(loop for artist in
+     '("William_Leavitt")
+   do
+     (loop for dir in (directory (merge-pathnames artist *guitar-source-root-directory*))
+        do (print dir)
+          (convert-audio-directory dir
+                                   :source-root-directory *guitar-source-root-directory*
+                                   :destination-root-directory *guitar-destination-root-directory*)))
+
+(loop for dir in (directory (merge-pathnames "Eric_Clapton/Me_And_Mr._Johnson" *audio-source-root-directory*))
+   do (print dir)
+     (convert-audio-directory dir))
+
+(loop for dir in (directory (merge-pathnames "Van_Morrison/Its_Too_Late_To_Stop_Now*/" *audio-source-root-directory*))
+   do (print dir)
+     (convert-audio-directory dir))
+
+(loop for dir in (directory (merge-pathnames "Van_Morrison/Saint_Dominics_Preview/" *audio-source-root-directory*))
+   do (print dir)
+     (convert-audio-directory dir))
