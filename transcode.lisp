@@ -87,12 +87,16 @@
   (loop for (tag value) on l by #'cddr
      do (convert-flac-tag-to-iso-tag iso-container tag value)))
 
-(defun convert-audio-directory (srcdir &key input-type output-type)
+(defun convert-audio-directory (srcdir &key
+                                         input-type
+                                         output-type
+                                         (source-root-directory *audio-source-root-directory*)
+                                         (destination-root-directory *audio-destination-root-directory*))
   (let ((files
          (recursively-list-files srcdir :test (lambda (x) (not (apple-cruft-file-p x))))))
     (mapcar (lambda (src)
-              (let ((dest (merge-pathnames (enough-namestring src *audio-source-root-directory*)
-                                           *audio-destination-root-directory*))
+              (let ((dest (merge-pathnames (enough-namestring src source-root-directory)
+                                           destination-root-directory))
                     copy-tags)
                 (when (equalp src dest)
                   (error "same src ~S and destination ~S" src dest))
