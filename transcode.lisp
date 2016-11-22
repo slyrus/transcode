@@ -25,12 +25,19 @@
                            :error :stream
                            :if-error-exists :supersede
                            :wait nil))
+    (#.(intern "ogg")
+       (sb-ext:run-program "/usr/bin/oggdec"
+                           (list (sb-ext:native-namestring src))
+                           :output :stream
+                           :error :stream
+                           :if-error-exists :supersede
+                           :wait nil))
     (t (format *error-output* "~&No decoder for ~s" src))))
 
 (defun run-audio-encoder (input dest &key (output-type "mp4a"))
   (case (intern output-type)
     (#.(intern "mp4a")
-       (sb-ext:run-program "/usr/bin/faac"
+       (sb-ext:run-program "/usr/local/bin/faac"
                            `("-o"
                              ,(sb-ext:native-namestring dest)
                              "-")
